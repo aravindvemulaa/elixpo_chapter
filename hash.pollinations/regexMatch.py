@@ -1,6 +1,6 @@
 import re
 
-TOKEN_REGEX = re.compile(r'Poll_[A-Z2-7]{27}')
+TOKEN_REGEX = re.compile(r' ')
 
 text = """
 Some random code:
