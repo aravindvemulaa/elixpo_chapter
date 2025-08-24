@@ -17,3 +17,6 @@ slowapi
 yt-dlp
 pytz
 numba
+loguru
+sentence-transformers
+faiss-cpu

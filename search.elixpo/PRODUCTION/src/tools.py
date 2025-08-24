@@ -3,11 +3,14 @@ tools = [
         "type": "function",
         "function": {
             "name": "cleanQuery",
-            "description": "Takes in a query, and returns a json object with the following keys: 'websites', 'youtube', and 'cleaned_query'.",
+            "description": "Clean and extract URLs from a search query",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The initial raw query mentioned made by the user"},
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to clean"
+                    }
                 },
                 "required": ["query"]
             }
@@ -17,11 +20,14 @@ tools = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Performs a search using either Google, DuckDuckGo, or Mojeek based on the query and returns up to 5 result URLs as a list",
+            "description": "Search the web for information",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The search query string."}
+                    "query": {
+                        "type": "string",
+                        "description": "The search query"
+                    }
                 },
                 "required": ["query"]
             }
@@ -30,12 +36,32 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "get_youtube_metadata",
-            "description": "Retrieves the title and duration of a YouTube video from its URL.",
+            "name": "fetch_full_text",
+            "description": "Fetch full text content from a URL",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "url": {"type": "string", "description": "The URL of the YouTube video."}
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to fetch content from"
+                    }
+                },
+                "required": ["url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_youtube_metadata",
+            "description": "Get metadata from a YouTube URL",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The YouTube URL"
+                    }
                 },
                 "required": ["url"]
             }
@@ -45,11 +71,14 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_youtube_transcript",
-            "description": "Fetches the transcript of a YouTube video, truncated if too long.",
+            "description": "Get transcript from a YouTube URL",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "url": {"type": "string", "description": "The URL of the YouTube video."}
+                    "url": {
+                        "type": "string",
+                        "description": "The YouTube URL"
+                    }
                 },
                 "required": ["url"]
             }
@@ -58,49 +87,17 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "fetch_full_text",
-            "description": "Fetches and parses a web page, extracting text, title, and up to three main images.",
+            "name": "get_local_time",
+            "description": "Get local time for a specific location",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "url": {"type": "string", "description": "The URL of the web page to fetch."}
+                    "location_name": {
+                        "type": "string",
+                        "description": "The location name"
+                    }
                 },
-                "required": ["url"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_timezone_and_offset",
-            "description": "Returns the timezone and UTC offset for a given location.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {"type": "string", "description": "The location for which to get the timezone and offset."}
-                },
-                "required": ["location"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "convert_utc_to_local",
-            "description": "Converts a UTC datetime to local time using a UTC offset string (e.g., 'UTC+05:30'). Returns the local time as a formatted string.",
-            "parameters": {
-            "type": "object",
-            "properties": {
-                "utc_datetime": {
-                "type": "string",
-                "description": "The UTC datetime in ISO 8601 format (e.g., '2024-06-01T12:00:00')."
-                },
-                "offset_str": {
-                "type": "string",
-                "description": "The UTC offset string (e.g., 'UTC+05:30' or 'UTC-04:00')."
-                }
-            },
-            "required": ["utc_datetime", "offset_str"]
+                "required": ["location_name"]
             }
         }
     },
@@ -108,26 +105,35 @@ tools = [
         "type": "function",
         "function": {
             "name": "generate_prompt_from_image",
-            "description": "Generates a search-friendly prompt from an image in base64 format.",
+            "description": "Generate a search prompt from an image URL",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "imageURL": {"type": "string", "description": "The URL of the image"}
+                    "imageURL": {
+                        "type": "string",
+                        "description": "The image URL to analyze"
+                    }
                 },
                 "required": ["imageURL"]
             }
-        },
+        }
     },
     {
         "type": "function",
         "function": {
             "name": "replyFromImage",
-            "description": "Generates a friendly response based on an image and a user query.",
+            "description": "Reply to a query based on an image",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "imageURL": {"type": "string", "description": "The URL of the image"},
-                    "query": {"type": "string", "description": "The user's query related to the image."}
+                    "imageURL": {
+                        "type": "string",
+                        "description": "The image URL"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "The query about the image"
+                    }
                 },
                 "required": ["imageURL", "query"]
             }
@@ -137,12 +143,19 @@ tools = [
         "type": "function",
         "function": {
             "name": "image_search",
-            "description": "Performs an image search using Google and returns up to 10 image URLs and their sources as lists.",
+            "description": "Search for images based on a query",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "image_query": {"type": "string", "description": "The search query string for images."},
-                    "max_images" : {"type": "integer", "description": "The maximum number of images to return."}
+                    "image_query": {
+                        "type": "string",
+                        "description": "The image search query"
+                    },
+                    "max_images": {
+                        "type": "integer",
+                        "description": "Maximum number of images to return",
+                        "default": 10
+                    }
                 },
                 "required": ["image_query"]
             }

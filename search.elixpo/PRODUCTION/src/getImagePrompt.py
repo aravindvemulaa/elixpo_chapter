@@ -1,7 +1,8 @@
 import requests
 import base64
 import asyncio
-
+from dotenv import load_dotenv
+import os
 import requests
 
 async def generate_prompt_from_image(imgURL: str) -> str:
@@ -38,7 +39,7 @@ async def generate_prompt_from_image(imgURL: str) -> str:
                 ]
             }
         ],
-        "token": "fEWo70t94146ZYgk",
+        "token": os.getenv("TOKEN"),
         "max_tokens": 50
     }
 
@@ -86,7 +87,7 @@ async def replyFromImage(imgURL: str, query: str) -> str:
                 ]
             }
         ],
-        "token": "fEWo70t94146ZYgk",
+        "token": os.getenv("TOKEN")
     }
 
     response = requests.post(api_url, headers=headers, json=data)
@@ -104,7 +105,7 @@ def image_url_to_base64(image_url):
 
 if __name__ == "__main__":
     async def main():
-        image_url = "https://airindia.scene7.com/is/image/airindia/26-3_Air_India_A350-900" 
+        image_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/500px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg" 
         prompt = await generate_prompt_from_image(image_url)
         print(prompt)
     asyncio.run(main()) 
