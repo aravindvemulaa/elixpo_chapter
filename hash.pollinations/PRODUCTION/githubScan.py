@@ -32,24 +32,20 @@ class PollinationsTokenScanner:
         part3 = self.hash_to_alphanum(combined, 8)
         return "Poll_" + part1 + part2 + part3
 
-    def scan_text_for_tokens(self, text, file_path=""):
+    def scan_text_for_tokens(self, text, username, file_path=""):
         findings = []
         lines = text.split('\n')
-        
         for line_num, line in enumerate(lines, 1):
             # Find all potential tokens using regex
             matches = self.token_regex.findall(line)
             
             for token in matches:
-                for username, github_id in self.user_mapping.items():
-                    expected_token = self.generate_pollinations_token(username, github_id)
-                    if token == expected_token:
+                    if token:
                         findings.append({
                             'file_path': file_path,
                             'line_number': line_num,
                             'token': token,
                             'username': username,
-                            'github_id': github_id,
                             'line_content': line.strip()
                         })
                         break
@@ -66,19 +62,19 @@ class PollinationsTokenScanner:
 
         for query in search_queries:
             print(f"🔍 Scanning: {query}")
-            findings = self._execute_search(query)
+            findings = self._execute_search(query, username)
         
         all_findings = []
         
         for query in search_queries:
             print(f"🔍 Scanning: {query}")
-            findings = self._execute_search(query)
+            findings = self._execute_search(query, username)
             all_findings.extend(findings)
             time.sleep(2)  
             
         return all_findings
 
-    def _execute_search(self, query):
+    def _execute_search(self, query, username):
         params = {
             "q": query,
             "per_page": 100
@@ -114,7 +110,7 @@ class PollinationsTokenScanner:
             for item in items:
                 content = self._get_file_content(item["url"])
                 if content:
-                    file_findings = self.scan_text_for_tokens(content, item["path"])
+                    file_findings = self.scan_text_for_tokens(content, username, item["path"])
                     for finding in file_findings:
                         finding.update({
                             'repo_url': item["repository"]["html_url"],
