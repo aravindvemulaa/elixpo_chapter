@@ -1,11 +1,12 @@
 import re
+import asyncio
 import requests
 import time
 import os
 import hashlib
 import base64
 from dotenv import load_dotenv
-
+from getFileExtension import findExtensions
 load_dotenv()
 
 class PollinationsTokenScanner:
@@ -57,20 +58,17 @@ class PollinationsTokenScanner:
         
         return findings
 
-    def search_github_repos(self, username):
-        """Search specific user's repositories for exposed tokens"""
-        url = "https://api.github.com/search/code"
-        
-        # Search queries focusing on common file types
+    async def search_github_repos(self, username):
+        extensionList = await findExtensions()
         search_queries = [
-            f"Poll_ in:file user:{username} extension:md",
-            f"Poll_ in:file user:{username} extension:txt", 
-            f"Poll_ in:file user:{username} extension:py",
-            f"Poll_ in:file user:{username} extension:js",
-            f"Poll_ in:file user:{username} extension:env",
-            f"Poll_ in:file user:{username} extension:json",
-            f"Poll_ in:file user:{username} filename:README"
+            f"Poll_ in:file user:{username} extension:{ext}" for ext in extensionList
         ]
+
+        all_findings = []
+
+        for query in search_queries:
+            print(f"🔍 Scanning: {query}")
+            findings = self._execute_search(query)
         
         all_findings = []
         
@@ -83,7 +81,6 @@ class PollinationsTokenScanner:
         return all_findings
 
     def _execute_search(self, query):
-        """Execute GitHub search and process results"""
         params = {
             "q": query,
             "per_page": 100
@@ -99,7 +96,7 @@ class PollinationsTokenScanner:
                                   params=params, headers=headers)
             
             if response.status_code == 403:
-                reset = int(response.headers.get("X-RateLimit-Reset", time.time()+60))
+                reset = int(response.headers.get("X-RateLimit-Reset", time.time()+60)%60)
                 sleep_time = max(reset - time.time(), 5)
                 print(f"   Rate limited, sleeping {sleep_time:.0f}s")
                 time.sleep(sleep_time)
@@ -132,7 +129,6 @@ class PollinationsTokenScanner:
             return []
 
     def _get_file_content(self, content_url):
-        """Get raw file content from GitHub API"""
         headers = {
             "Authorization": f"Bearer {self.github_token}",
             "Accept": "application/vnd.github.raw"
@@ -146,8 +142,7 @@ class PollinationsTokenScanner:
             pass
         return None
 
-    def scan_user_protection(self, username):
-        """Main method for GitHub App - scan and protect user"""
+    async def scan_user_protection(self, username):
         print(f"🛡️  POLLINATIONS TOKEN PROTECTION SCAN")
         print(f"👤 Scanning for user: {username}")
         print("=" * 60)
@@ -156,7 +151,7 @@ class PollinationsTokenScanner:
             print(f"❌ User {username} not registered for protection")
             return []
             
-        findings = self.search_github_repos(username)
+        findings = await self.search_github_repos(username)
         
         if not findings:
             print("✅ No exposed Pollinations tokens found!")
@@ -202,13 +197,10 @@ class PollinationsTokenScanner:
 
 # GitHub App usage
 if __name__ == "__main__":
-    scanner = PollinationsTokenScanner()
+    async def main():
+        scanner = PollinationsTokenScanner()
+        findings = await scanner.scan_user_protection("Circuit-Overtime")
+        print(f"Total Findings: {len(findings)}")
+    asyncio.run(main())
+        
     
-    # Scan for Circuit-Overtime's exposed tokens
-    findings = scanner.scan_user_protection("Circuit-Overtime")
-    
-    # Could be extended for webhook integration:
-    # - Monitor new commits/pushes
-    # - Automatically scan on repo creation
-    # - Send alerts to users
-    # - Create GitHub issues for exposure warnings
