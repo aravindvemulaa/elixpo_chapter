@@ -1,123 +1,214 @@
 import re
 import requests
 import time
+import os
 import hashlib
 import base64
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
-import os
+
 load_dotenv()
 
-# ================================
-# CONFIG
-# ================================
-GITHUB_TOKEN = os.getenv("githubToken")
-TOKEN_REGEX = re.compile(r'^Poll_[A-Z2-7]{8}[A-Z2-7]{11}[A-Z2-7]{8}$')
-SEARCH_QUERY = "Poll_ in:file"
-FILE_EXTENSIONS = ["md", "env", "json", "py", "js"]
-RESULTS_PER_PAGE = 30
-MAX_PAGES = 10
-MAX_THREADS = 5
-OUTPUT_LOG = "pollinations_token_leaks_validated.log"
+class PollinationsTokenScanner:
+    def __init__(self):
+        self.github_token = os.getenv("githubToken")
+        self.token_regex = re.compile(r'Poll_[A-Z0-9]{8}[A-Z0-9]{11}[A-Z0-9]{8}')
+        self.user_mapping = {
+            "Circuit-Overtime": 74301576
+        }
+        
+    def hash_to_alphanum(self, s, length):
+        """Convert string to alphanumeric hash"""
+        h = hashlib.sha256(s.encode()).digest()
+        b32 = base64.b32encode(h).decode('utf-8')
+        alphanum = ''.join(c for c in b32 if c.isalnum())
+        return alphanum[:length]
 
-# Mapping of username -> GitHub ID
-USER_MAPPING = {
-    "Circuit-Overtime": 74301576,
-    # Add more users here
-}
+    def generate_pollinations_token(self, username, github_id):
+        """Generate expected token for a user"""
+        part1 = self.hash_to_alphanum(username, 8)
+        part2 = self.hash_to_alphanum(str(github_id), 11)
+        combined = username + str(github_id)
+        part3 = self.hash_to_alphanum(combined, 8)
+        return "Poll_" + part1 + part2 + part3
 
-# ================================
-# HELPER FUNCTIONS
-# ================================
-def hash_to_alphanum(s, length):
-    h = hashlib.sha256(s.encode()).digest()
-    b32 = base64.b32encode(h).decode('utf-8')
-    alphanum = ''.join(c for c in b32 if c.isalnum())
-    return alphanum[:length]
+    def scan_text_for_tokens(self, text, file_path=""):
+        """Scan text content for Pollinations tokens using regex"""
+        findings = []
+        lines = text.split('\n')
+        
+        for line_num, line in enumerate(lines, 1):
+            # Find all potential tokens using regex
+            matches = self.token_regex.findall(line)
+            
+            for token in matches:
+                # Validate against known users
+                for username, github_id in self.user_mapping.items():
+                    expected_token = self.generate_pollinations_token(username, github_id)
+                    if token == expected_token:
+                        findings.append({
+                            'file_path': file_path,
+                            'line_number': line_num,
+                            'token': token,
+                            'username': username,
+                            'github_id': github_id,
+                            'line_content': line.strip()
+                        })
+                        break
+        
+        return findings
 
-def generate_pollinations_token(username, github_id):
-    part1 = hash_to_alphanum(username, 8)
-    part2 = hash_to_alphanum(str(github_id), 11)
-    combined = username + str(github_id)
-    part3 = hash_to_alphanum(combined, 8)
-    return "Poll_" + part1 + part2 + part3
+    def search_github_repos(self, username):
+        """Search specific user's repositories for exposed tokens"""
+        url = "https://api.github.com/search/code"
+        
+        # Search queries focusing on common file types
+        search_queries = [
+            f"Poll_ in:file user:{username} extension:md",
+            f"Poll_ in:file user:{username} extension:txt", 
+            f"Poll_ in:file user:{username} extension:py",
+            f"Poll_ in:file user:{username} extension:js",
+            f"Poll_ in:file user:{username} extension:env",
+            f"Poll_ in:file user:{username} extension:json",
+            f"Poll_ in:file user:{username} filename:README"
+        ]
+        
+        all_findings = []
+        
+        for query in search_queries:
+            print(f"🔍 Scanning: {query}")
+            findings = self._execute_search(query)
+            all_findings.extend(findings)
+            time.sleep(2)  # Rate limit protection
+            
+        return all_findings
 
-def is_valid_token(token):
-    """Check token against all known username-ID pairs."""
-    for user, gid in USER_MAPPING.items():
-        if token == generate_pollinations_token(user, gid):
-            return True, user, gid
-    return False, None, None
+    def _execute_search(self, query):
+        """Execute GitHub search and process results"""
+        params = {
+            "q": query,
+            "per_page": 100
+        }
+        headers = {
+            "Authorization": f"Bearer {self.github_token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        try:
+            response = requests.get("https://api.github.com/search/code", 
+                                  params=params, headers=headers)
+            
+            if response.status_code == 403:
+                reset = int(response.headers.get("X-RateLimit-Reset", time.time()+60))
+                sleep_time = max(reset - time.time(), 5)
+                print(f"   Rate limited, sleeping {sleep_time:.0f}s")
+                time.sleep(sleep_time)
+                return self._execute_search(query)
+            
+            if response.status_code != 200:
+                print(f"   Error: {response.status_code}")
+                return []
+                
+            items = response.json().get("items", [])
+            findings = []
+            
+            for item in items:
+                # Get file content
+                content = self._get_file_content(item["url"])
+                if content:
+                    file_findings = self.scan_text_for_tokens(content, item["path"])
+                    for finding in file_findings:
+                        finding.update({
+                            'repo_url': item["repository"]["html_url"],
+                            'file_url': item["html_url"],
+                            'owner': item["repository"]["owner"]["login"]
+                        })
+                        findings.append(finding)
+                        
+            return findings
+            
+        except Exception as e:
+            print(f"   Search error: {e}")
+            return []
 
-def github_search_code(query, file_ext=None, page=1):
-    url = "https://api.github.com/search/code"
-    q = query
-    if file_ext:
-        q += f" extension:{file_ext}"
-    params = {"q": q, "per_page": RESULTS_PER_PAGE, "page": page, "sort": "indexed"}
-    headers = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28"
-    }
-    response = requests.get(url, params=params, headers=headers)
-    if response.status_code == 403:
-        reset = int(response.headers.get("X-RateLimit-Reset", time.time()+60))
-        sleep_time = max(reset - time.time(), 5)
-        print(f"Rate limited, sleeping {sleep_time:.0f}s")
-        time.sleep(sleep_time)
-        return github_search_code(query, file_ext, page)
-    response.raise_for_status()
-    return response.json().get("items", [])
+    def _get_file_content(self, content_url):
+        """Get raw file content from GitHub API"""
+        headers = {
+            "Authorization": f"Bearer {self.github_token}",
+            "Accept": "application/vnd.github.raw"
+        }
+        
+        try:
+            response = requests.get(content_url, headers=headers)
+            if response.status_code == 200:
+                return response.text
+        except:
+            pass
+        return None
 
-def fetch_raw_file(html_url):
-    raw_url = html_url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
-    try:
-        response = requests.get(raw_url, timeout=10)
-        if response.status_code == 200:
-            return response.text
-    except Exception as e:
-        print(f"Error fetching {raw_url}: {e}")
-    return ""
+    def scan_user_protection(self, username):
+        """Main method for GitHub App - scan and protect user"""
+        print(f"🛡️  POLLINATIONS TOKEN PROTECTION SCAN")
+        print(f"👤 Scanning for user: {username}")
+        print("=" * 60)
+        
+        if username not in self.user_mapping:
+            print(f"❌ User {username} not registered for protection")
+            return []
+            
+        findings = self.search_github_repos(username)
+        
+        if not findings:
+            print("✅ No exposed Pollinations tokens found!")
+        else:
+            print(f"🚨 ALERT: Found {len(findings)} exposed tokens!")
+            print("\n📋 EXPOSURE REPORT:")
+            print("=" * 60)
+            
+            for finding in findings:
+                print(f"🗂️  Repository: {finding['repo_url']}")
+                print(f"📄 File: {finding['file_path']} (line {finding['line_number']})")
+                print(f"🔑 Token: {finding['token']}")
+                print(f"👤 User: {finding['username']} ({finding['github_id']})")
+                print(f"🔗 Direct link: {finding['file_url']}")
+                print(f"📝 Content: {finding['line_content']}")
+                print("-" * 40)
+                
+            # Save report
+            self._save_report(findings, username)
+            
+        return findings
 
-def scan_content_for_tokens(content, repo_url, file_path):
-    matches = []
-    for i, line in enumerate(content.splitlines(), 1):
-        m = TOKEN_REGEX.search(line)
-        if m:
-            token = m.group()
-            valid, user, gid = is_valid_token(token)
-            if valid:
-                matches.append((i, token, user, gid))
-    if matches:
-        with open(OUTPUT_LOG, "a") as f:
-            for lineno, token, user, gid in matches:
-                f.write(f"{repo_url} | {file_path} | line {lineno} | {token} | {user} | {gid}\n")
-        print(f"[+] Found {len(matches)} valid token(s) in {repo_url}/{file_path}")
+    def _save_report(self, findings, username):
+        """Save exposure report to file"""
+        report_file = f"pollinations_exposure_report_{username}.log"
+        with open(report_file, "w") as f:
+            f.write(f"POLLINATIONS TOKEN EXPOSURE REPORT\n")
+            f.write(f"User: {username}\n")
+            f.write(f"Scan Date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Exposed Tokens Found: {len(findings)}\n")
+            f.write("=" * 60 + "\n\n")
+            
+            for finding in findings:
+                f.write(f"Repository: {finding['repo_url']}\n")
+                f.write(f"File: {finding['file_path']} (line {finding['line_number']})\n")
+                f.write(f"Token: {finding['token']}\n")
+                f.write(f"User: {finding['username']} ({finding['github_id']})\n")
+                f.write(f"Direct Link: {finding['file_url']}\n")
+                f.write(f"Content: {finding['line_content']}\n")
+                f.write("-" * 60 + "\n")
+                
+        print(f"📄 Report saved to: {report_file}")
 
-def process_file(item):
-    repo_url = item["repository"]["html_url"]
-    file_path = item["path"]
-    html_url = item["html_url"]
-    content = fetch_raw_file(html_url)
-    if content:
-        scan_content_for_tokens(content, repo_url, file_path)
-
-# ================================
-# MAIN SCAN LOOP
-# ================================
-def main():
-    for ext in FILE_EXTENSIONS:
-        print(f"\nScanning .{ext} files...")
-        for page in range(1, MAX_PAGES+1):
-            results = github_search_code(SEARCH_QUERY, ext, page)
-            if not results:
-                break
-            with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
-                futures = [executor.submit(process_file, item) for item in results]
-                for future in as_completed(futures):
-                    future.result()  # wait for all to finish
-            time.sleep(2)  # gentle delay between pages
-
+# GitHub App usage
 if __name__ == "__main__":
-    main()
+    scanner = PollinationsTokenScanner()
+    
+    # Scan for Circuit-Overtime's exposed tokens
+    findings = scanner.scan_user_protection("Circuit-Overtime")
+    
+    # Could be extended for webhook integration:
+    # - Monitor new commits/pushes
+    # - Automatically scan on repo creation
+    # - Send alerts to users
+    # - Create GitHub issues for exposure warnings
