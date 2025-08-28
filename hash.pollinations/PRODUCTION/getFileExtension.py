@@ -16,16 +16,15 @@ resp = requests.get(url, headers=headers).json()
 READABLE_EXTS = {
     ".env", ".py", ".md", ".js", ".ts",
     ".rb", ".html", ".txt", ".json", ".yml", ".yaml", ".toml", ".ini",
-    ".cfg", ".sh", ".bat", ".dockerfile",
+    ".cfg", ".dockerfile",
 }
 
 
 async def findExtensions():
     exts = set()
     for item in resp.get("tree", []):
-        if item["type"] == "blob":  # file
+        if item["type"] == "blob": 
             _, ext = os.path.splitext(item["path"])
             if ext in READABLE_EXTS:
                 exts.add(ext)
     return sorted(exts)
-
