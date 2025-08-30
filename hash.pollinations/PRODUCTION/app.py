@@ -14,9 +14,9 @@ load_dotenv()
 # GitHub App credentials
 APP_ID = os.getenv("GITHUB_APP_ID")
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
-CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")       # from App settings
-CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")  # from App settings
-PRIVATE_KEY = open("private-key.pem", "r").read()  
+CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")      
+CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")  
+PRIVATE_KEY = open("polli-guard.pem", "r").read()  
 
 app = Flask(__name__)
 
