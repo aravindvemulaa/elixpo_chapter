@@ -21,22 +21,19 @@ PRIVATE_KEY = open("polli-guard.pem", "r").read()
 app = Flask(__name__)
 
 def verify_signature(payload, signature):
-    """Verify GitHub webhook signature"""
     mac = hmac.new(WEBHOOK_SECRET.encode(), msg=payload, digestmod=hashlib.sha256)
     return hmac.compare_digest("sha256=" + mac.hexdigest(), signature)
 
 def get_jwt():
-    """Create JWT for GitHub App authentication"""
     now = int(time.time())
     payload = {
         "iat": now,
-        "exp": now + (10 * 60),  # valid 10 mins
+        "exp": now + (10 * 60),  
         "iss": APP_ID
     }
     return jwt.encode(payload, PRIVATE_KEY, algorithm="RS256")
 
 def get_installation_token(installation_id):
-    """Exchange JWT for installation access token"""
     headers = {
         "Authorization": f"Bearer {get_jwt()}",
         "Accept": "application/vnd.github+json"
@@ -48,7 +45,6 @@ def get_installation_token(installation_id):
 
 @app.route("/auth")
 def auth():
-    """OAuth callback for GitHub App"""
     code = request.args.get("code")
     if not code:
         return "❌ No code provided", 400
