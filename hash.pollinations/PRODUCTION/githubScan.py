@@ -15,9 +15,6 @@ class PollinationsTokenScanner:
     def __init__(self):
         self.github_token = os.getenv("githubToken")
         self.token_regex = re.compile(r'Poll_[A-Z0-9]{8}[A-Z0-9]{11}[A-Z0-9]{8}')
-        self.user_mapping = {
-            "Circuit-Overtime": 74301576
-        }
         
     def hash_to_alphanum(self, s, length):
         h = hashlib.sha256(s.encode()).digest()
@@ -165,10 +162,7 @@ class PollinationsTokenScanner:
         print(f"🛡️  POLLINATIONS TOKEN PROTECTION SCAN")
         print(f"👤 Scanning for user: {username}")
         print("=" * 60)
-        
-        if username not in self.user_mapping:
-            print(f"❌ User {username} not registered for protection")
-            return []
+
             
         findings = await self.search_github_repos(username)
         for finding in findings:
