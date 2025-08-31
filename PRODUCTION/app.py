@@ -9,8 +9,13 @@ from flask import Flask, request, abort, jsonify
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from githubScan import PollinationsTokenScanner  
+from rq import Queue
+from redis import Redis
+import logging
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("app")
 
 # === ENV VARS ===
 APP_ID = os.getenv("GITHUB_APP_ID")
@@ -26,10 +31,15 @@ mongo = MongoClient(MONGO_URI)
 db = mongo["poll-token"]
 users_col = db["users"]       # authorized logins
 events_col = db["events"]     # webhook + scan logs
-
+redis_conn = Redis()
+leak_queue = Queue("leaks", connection=redis_conn)
+leaks_col = db["leaks"] 
 
 # === HELPERS ===
 def verify_signature(payload, signature):
+    if not signature:
+        logger.warning("No signature provided in webhook request")
+        return False
     mac = hmac.new(WEBHOOK_SECRET.encode(), msg=payload, digestmod=hashlib.sha256)
     return hmac.compare_digest("sha256=" + mac.hexdigest(), str(signature))
 
@@ -106,6 +116,7 @@ def webhook():
     """Handles GitHub webhook events"""
     signature = request.headers.get("X-Hub-Signature-256")
     if not verify_signature(request.data, signature):
+        logger.warning("Invalid webhook signature")
         abort(400, "Invalid signature")
 
     event = request.headers.get("X-GitHub-Event", "ping")
@@ -115,29 +126,46 @@ def webhook():
         return jsonify({"msg": "pong"}), 200
 
     if event == "push":
-        repo = payload["repository"]["full_name"]
-        username = payload["repository"]["owner"]["login"]
-        installation_id = payload["installation"]["id"]
+        try:
+            repo = payload["repository"]["full_name"]
+            username = payload["repository"]["owner"]["login"]
+            installation_id = payload["installation"]["id"]
 
-        print(f"📦 Push detected on {repo} by {username}")
+            logger.info(f"Push detected on {repo} by {username}")
 
-        # Get installation token
-        token = get_installation_token(installation_id)
-        os.environ["githubToken"] = token  # pass to scanner
+            # Get installation token
+            token = get_installation_token(installation_id)
+            os.environ["githubToken"] = token  # pass to scanner
 
-        # Run scanner
-        scanner = PollinationsTokenScanner()
-        result = asyncio.run(scanner.scan_user_protection(username))
+            # Run scanner
+            scanner = PollinationsTokenScanner()
+            result = asyncio.run(scanner.scan_user_protection(username))
 
-        # Store event + result in Mongo
-        events_col.insert_one({
-            "event": "push",
-            "repo": repo,
-            "username": username,
-            "installation_id": installation_id,
-            "timestamp": time.time(),
-            "result": result
-        })
+            # Store event + result in Mongo
+            events_col.insert_one({
+                "event": "push",
+                "repo": repo,
+                "username": username,
+                "installation_id": installation_id,
+                "timestamp": time.time(),
+                "result": result
+            })
+            leaks = result.get("leaks", [])
+            for leak in leaks:
+                leak_info = {
+                    "repo_url": repo,
+                    "file_path": leak["file_path"],
+                    "line_number": leak["line_number"],
+                    "token": leak["token"],
+                    "commit_hash": leak.get("commit_hash"),
+                    "diff_info": leak.get("diff_info"),
+                    "receiver_email": leak.get("receiver_email", username + "@users.noreply.github.com"),
+                    "timestamp": time.time()
+                }
+                leak_queue.enqueue("emailWorkerScript.process_leak", leak_info)
+        except Exception as e:
+            logger.exception(f"Error processing push event: {e}")
+            abort(500, "Internal server error")
 
     return "", 200
 
