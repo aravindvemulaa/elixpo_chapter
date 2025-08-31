@@ -6,6 +6,7 @@ from prepareEmailPayload import build_html_body
 from dotenv import load_dotenv
 import os
 import asyncio 
+from typing import Optional
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ password = os.getenv("EMAIL_PASS")
 if not sender_email or not password:
     raise ValueError("EMAIL_USER and EMAIL_PASS must be set in the .env file")
 
-def send_email(receiver_email, repo_url, file_path, line_number, token, commit_hash, diff_info):
+def send_email(receiver_email, repo_url, file_path, line_number, token, commit_hash, diff_info : Optional[str] = None):
     msg = MIMEMultipart()
     msg["From"] = sender_email
     msg["To"] = receiver_email
@@ -45,4 +46,13 @@ def send_email(receiver_email, repo_url, file_path, line_number, token, commit_h
         return {"status": "error", "email": receiver_email, "message": str(e)}
 
 if __name__ == "__main__":
-    asyncio.run(send_email())
+    if __name__ == "__main__":
+        send_email(
+            "ayushbhatt633@gmail.com",
+            "Circuit-Overtime/elixpo_chapter",
+            "code-conduct.md",
+            "125",
+            "polli_548414848484",
+            "#664fefe1de5fe",
+            "++ 84551 --12"
+        )
