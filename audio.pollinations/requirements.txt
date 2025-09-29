@@ -86,7 +86,7 @@ pillow==11.3.0
 platformdirs==4.4.0
 pooch==1.8.2
 prompt_toolkit==3.0.52
-protobuf==3.19.6
+protobuf==4.25.8
 ptyprocess==0.7.0
 pure_eval==0.2.3
 pycparser==2.23
