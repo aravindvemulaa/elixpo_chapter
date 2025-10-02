@@ -1,4 +1,4 @@
-import { murmurhash3_32_gc } from "./murmurhash3.js";
+import { murmurhash3_32_gc } from "./bloomHash.js";
 import fs from "fs";
 class BloomFilter {
   constructor(size, numHashes) {
@@ -52,9 +52,8 @@ class BloomFilter {
     return Math.pow(probBitSet, k);
   }
 
-  // Save to binary file
   saveToFile(path) {
-    const header = Buffer.alloc(12); // store size, numHashes, count
+    const header = Buffer.alloc(12); 
     header.writeUInt32BE(this.size, 0);
     header.writeUInt32BE(this.numHashes, 4);
     header.writeUInt32BE(this.count, 8);
@@ -63,7 +62,7 @@ class BloomFilter {
     fs.writeFileSync(path, buffer);
   }
 
-  // Load from binary file
+  
   static loadFromFile(path) {
     const buffer = fs.readFileSync(path);
 
@@ -95,7 +94,7 @@ class AdaptiveBloom {
       const m = Math.ceil(-(expectedItems * Math.log(targetFPR)) / Math.log(2) ** 2);
       const k = Math.round((m / expectedItems) * Math.log(2));
       this.filters.push(new BloomFilter(m, k));
-      this.saveToFile(); // save initial
+      this.saveToFile(); 
     }
   }
 
@@ -121,7 +120,6 @@ class AdaptiveBloom {
   }
 
   saveToFile() {
-    // Write multiple filters back-to-back
     const buffers = [];
     for (const f of this.filters) {
       const header = Buffer.alloc(12);
@@ -157,4 +155,11 @@ class AdaptiveBloom {
 }
 
 const bloomFilter = new AdaptiveBloom(10000, 0.01);
+bloomFilter.loadFromFile("adaptiveBloom.bin");
+bloomFilter.add("User 123");
+let contain = bloomFilter.contains("User 123"); 
+console.log("Contains 'User 123':", contain);
+let contain2 = bloomFilter.contains("User 456"); 
+console.log("Contains 'User 456':", contain2);
+
 export { bloomFilter };

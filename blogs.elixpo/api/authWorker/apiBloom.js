@@ -36,7 +36,6 @@ export async function checkUsernameAvailability(req, res) {
       });
     }
 
-    // Check bloom filter
     const mightExist = bloomFilter.contains(normalizedUsername);
 
     if (!mightExist) {
