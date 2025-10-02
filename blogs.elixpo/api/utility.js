@@ -10,6 +10,7 @@ function generateOTP() {
 }
 
 
+
 async function getCountryFromIP(ip) {
   try {
     const response = await fetch(`https://ipapi.co/${ip}/json/`);
@@ -164,9 +165,33 @@ async function sendOTPMail(email, otp, token, state, operation, callback)
   }
 }
 
+function generateSuggestions(baseName, takenSet) {
+  const suggestions = [];
+  for (let i = 1; i <= 99; i++) {
+    const suggestion = baseName + i;
+    if (!takenSet.has(suggestion) && suggestions.length < 5) {
+      suggestions.push(suggestion);
+    }
+  }
+  const prefixes = ["the", "cool", "new", "super", "real"];
+  prefixes.forEach((prefix) => {
+    const suggestion = prefix + baseName;
+    if (!takenSet.has(suggestion) && suggestions.length < 5) {
+      suggestions.push(suggestion);
+    }
+  });
+  const suffixes = ["_dev", "_writer", "_blogger", "_pro", "_official"];
+  suffixes.forEach((suffix) => {
+    const suggestion = baseName + suffix;
+    if (!takenSet.has(suggestion) && suggestions.length < 5) {
+      suggestions.push(suggestion);
+    }
+  });
 
+  return suggestions.slice(0, 5);
+}
 
 //test mail 
 // sendOTPMail("ayushbhatt633@gmail.com", "123456", "bljY0G", "elixpo-blogs", "login", false)
 
-export { generateOTP, generatetoken, sendOTPMail, createFirebaseUser, generateUID, getCountryFromIP };
+export { generateOTP, generatetoken, sendOTPMail, createFirebaseUser, generateUID, getCountryFromIP, generateSuggestions };

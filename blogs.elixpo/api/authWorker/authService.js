@@ -1,6 +1,7 @@
 import { appExpress, router } from "../initializeExpress.js";
 import {registerRequest, verifyRegisterOTP} from './apiRegister.js';
 import {authenticateToken, loginGithub, loginGoogle, loginEmail, verifyLoginOTP} from './apiLogin.js';
+import {checkUsernameAvailability, registerName} from './apiBloom.js';
 
 router.get("/registerRequest", async (req, res) => {
     const email = req.query.email;
@@ -50,6 +51,14 @@ router.get("/verifyLoginOTP", async (req, res) => {
   const { otp, token, email, time, operation, state, callback, remember } = req.query;
   await verifyLoginOTP(otp, token, email, time, operation, state, callback, remember, req, res);
 
+});
+
+router.post("/registerBloom", async (req, res) => {
+    await registerName(req, res);
+});
+
+router.post("/checkUser", async (req, res) => {
+    checkUsernameAvailability(req, res);
 });
 
 
