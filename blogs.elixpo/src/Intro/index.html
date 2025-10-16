@@ -89,7 +89,7 @@
             <div class="step-content w-full hidden" id="step3" data-step="3">
               <div class="profile-banner-container relative w-full max-w-md mx-auto">
                 <div 
-                  class="banner-preview w-full h-32 rounded-t-xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out text-slate-400 text-sm text-center relative overflow-hidden hover:border-purple-400 hover:bg-purple-500/10 hover:shadow-lg hover:shadow-purple-500/20 group" 
+                  class="banner-preview w-full h-32 rounded-t-xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ease-in-out text-slate-400 text-sm text-center relative overflow-hidden hover:border-purple-400 hover:bg-purple-500/10 hover:shadow-lg hover:shadow-purple-500/20 group bg-cover bg-center bg-no-repeat" 
                   id="bannerPreview"
                   onclick="document.getElementById('bannerImage').click()"
                 >
@@ -137,7 +137,7 @@
                     </button>
                     
                     <button 
-                      type="submit" 
+                      type="button" 
                       class="complete-btn bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-none rounded-xl px-6 py-3 cursor-pointer text-sm font-semibold flex items-center gap-2 transition-all duration-300 ease-in-out hover:from-emerald-700 hover:to-emerald-800 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/30 hidden" 
                       id="completeBtn"
                     >
@@ -149,15 +149,15 @@
         </div>
       </section>
 
-      <div id="cropperModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[2000]">
-        <div class="bg-slate-800 p-5 rounded-lg shadow-lg w-full max-w-lg">
-          <h2 class="text-white text-2xl mb-4">Crop Image</h2>
-          <div class="img-container">
-            <img id="imageToCrop" src="" alt="Image to crop">
+      <div id="cropperModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[2000] hidden">
+        <div class="bg-slate-800 p-6 rounded-lg shadow-lg w-full max-w-2xl mx-4">
+          <h2 class="text-[#ccc] text-xl mb-4">Adjust Your Image!</h2>
+          <div class="img-container w-full h-96 bg-transparent border-2 border-dashed border-slate-600 rounded-lg overflow-hidden flex items-center justify-center hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 ease-in-out">
+        <img id="imageToCrop" src="" alt="Image to crop" class="max-w-full max-h-full object-contain">
           </div>
           <div class="flex justify-end gap-4 mt-4">
-            <button id="cancelCrop" class="bg-slate-600 text-white px-4 py-2 rounded-lg">Cancel</button>
-            <button id="cropImage" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Crop</button>
+        <button id="cancelCrop" type="button" class="bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors">Cancel</button>
+        <button id="cropImage" type="button" class="bg-gradient-to-br from-blue-500 to-blue-700 text-white border-none rounded-xl px-6 py-3 cursor-pointer text-sm font-semibold flex items-center gap-2 transition-all duration-300 ease-in-out hover:from-blue-700 hover:to-blue-800 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/30 disabled:from-slate-500/30 disabled:to-slate-500/30 disabled:text-slate-400/50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-non">Done</button>
           </div>
         </div>
       </div>
